@@ -137,19 +137,6 @@ python llm_file_assistant.py
 
 ---
 
-## Demo Video Recording Guide
-
-When recording your 2–3 minute video demo:
-1. Show the project structure and the `resumes/` folder contents (5 PDF files).
-2. Open `workbook.ipynb` and run cells step-by-step, narrating each stage.
-3. Demonstrate live tool calling by running the three demo query cells:
-   - **Step 13** — `"Read all resumes in the resumes folder"` (observe `list_files` & `read_file` logs).
-   - **Step 14** — `"Find resumes mentioning Python experience"` (observe `search_in_file` logs).
-   - **Step 15** — `"Create a summary file for resumes/resume_john_doe.pdf at summaries/john_doe_summary.txt"` (observe `write_file` log and verify the output file).
-4. Optionally run **Step 16** (validation tests) to confirm all tools pass.
-
----
-
 ## License
 
 MIT License. Developed for LLM Function Calling & Tool Use Assignment.
