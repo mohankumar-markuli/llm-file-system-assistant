@@ -1,0 +1,25 @@
+Summary for John Doe:
+
+**Position:** Senior Software Engineer
+
+**Professional Summary:**
+Experienced Software Engineer specializing in backend infrastructure, REST API design, and distributed systems. Expert in Python, FastAPI, and Docker.
+
+**Technical Skills:**
+- Python
+- FastAPI
+- Docker
+- PostgreSQL
+- AWS
+- Redis
+- Git
+
+**Work Experience:**
+1. **Senior Python Developer - TechCorp Innovations (2021 - Present)**  
+   Architected high-throughput microservices using Python and FastAPI. Reduced API latency by 40% using Redis caching and optimized PostgreSQL queries.
+
+2. **Software Engineer - CloudScale Systems (2018 - 2021)**  
+   Built containerized data pipelines with Python and Docker on AWS ECS.
+
+**Education:**
+B.S. in Computer Science, University of California, Berkeley (2018)

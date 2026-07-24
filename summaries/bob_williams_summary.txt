@@ -1,0 +1,9 @@
+Bob Williams - DevOps & Cloud Infrastructure Engineer
+
+Professional Summary: DevOps Engineer with deep expertise in cloud infrastructure automation, Kubernetes orchestration, CI/CD pipelines, and Python scripting.
+
+Technical Skills: Kubernetes, Terraform, Docker, Python, AWS, CI/CD, Ansible, Linux
+
+Work Experience: DevOps Lead at InfraCloud Global (2021 - Present)
+
+Education: B.S. in Information Technology, University of Texas (2019)

@@ -1,0 +1,9 @@
+Jane Smith - Lead Data Scientist
+
+Professional Summary: Data Scientist with 6+ years building predictive ML models, NLP engines, and big data analytics pipelines using Python, PyTorch, and SQL.
+
+Technical Skills: Python, PyTorch, SQL, Pandas, Scikit-Learn, Machine Learning, NLP
+
+Work Experience: Lead Data Scientist at Analytics AI Labs (2022 - Present)
+
+Education: M.S. in Statistics & Data Science, Stanford University (2019)

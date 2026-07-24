@@ -1,0 +1,9 @@
+David Miller - Full Stack Engineer
+
+Professional Summary: Versatile Full Stack Engineer experienced in Python web development (Django/Flask) paired with modern React frontends.
+
+Technical Skills: Python, Django, React, GraphQL, PostgreSQL, JavaScript, Docker
+
+Work Experience: Full Stack Developer at Nexus Apps Inc. (2021 - Present)
+
+Education: B.S. in Computer Science, Georgia Tech (2021)

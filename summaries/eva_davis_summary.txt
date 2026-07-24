@@ -1,0 +1,9 @@
+Eva Davis - AI Research & LLM Engineer
+
+Professional Summary: AI Engineer focused on Large Language Models, Retrieval-Augmented Generation (RAG), fine-tuning, and LLM application frameworks in Python.
+
+Technical Skills: Python, LLMs, LangChain, RAG, PyTorch, OpenAI API, Vector Databases, Transformers
+
+Work Experience: AI Applications Engineer at Cognitive AI Systems (2022 - Present)
+
+Education: M.S. in Artificial Intelligence, MIT (2022)
