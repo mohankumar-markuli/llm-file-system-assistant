@@ -2,7 +2,9 @@ import os
 import json
 import sys
 from dotenv import load_dotenv
-from openai import OpenAI
+from langchain_core.tools import tool
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_openai import ChatOpenAI
 import fs_tools
 
 # Fix Windows console UTF-8 output issue
@@ -15,163 +17,79 @@ if sys.platform == "win32":
 # Load environment variables from .env file
 load_dotenv()
 
-def get_openai_client():
-    """Configure and return OpenAI client pointing to OpenAI or OpenRouter based on .env."""
+# Define LangChain tool functions wrapping fs_tools core file system operations
+@tool
+def read_file(filepath: str) -> str:
+    """Read a single file (.pdf, .txt, .docx) OR all documents in a directory at once. Extracts text content, metadata, and person names for candidate matching."""
+    result = fs_tools.read_file(filepath)
+    return json.dumps(result)
+
+@tool
+def list_files(directory: str, extension: str = None) -> str:
+    """List all files in a directory, optionally filtering by extension (e.g. '.pdf', '.txt', '.docx')."""
+    result = fs_tools.list_files(directory, extension)
+    return json.dumps(result)
+
+@tool
+def write_file(filepath: str, content: str) -> str:
+    """Write text content to a destination file, creating directories if needed."""
+    result = fs_tools.write_file(filepath, content)
+    return json.dumps(result)
+
+@tool
+def search_in_file(filepath: str, keyword: str) -> str:
+    """Perform a case-insensitive keyword search in a file or entire directory and return matching lines with context."""
+    result = fs_tools.search_in_file(filepath, keyword)
+    return json.dumps(result)
+
+# List of tools for LangChain binding
+tools = [read_file, list_files, write_file, search_in_file]
+tools_by_name = {t.name: t for t in tools}
+
+def get_llm_model():
+    """Configure and return LangChain ChatOpenAI instance pointing to OpenAI or OpenRouter based on .env."""
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
 
     if openrouter_key:
-        print("[System] Using OpenRouter API client.")
-        return OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=openrouter_key
-        ), os.environ.get("MODEL_NAME", "openai/gpt-4o-mini")
+        print("[System] Using OpenRouter API client via LangChain.")
+        model_name = os.environ.get("MODEL_NAME", "openai/gpt-4o-mini")
+        return ChatOpenAI(
+            model=model_name,
+            openai_api_key=openrouter_key,
+            openai_api_base="https://openrouter.ai/api/v1"
+        )
     elif openai_key:
-        print("[System] Using OpenAI API client.")
-        return OpenAI(
-            api_key=openai_key
-        ), os.environ.get("MODEL_NAME", "gpt-4o-mini")
+        print("[System] Using OpenAI API client via LangChain.")
+        model_name = os.environ.get("MODEL_NAME", "gpt-4o-mini")
+        return ChatOpenAI(
+            model=model_name,
+            openai_api_key=openai_key
+        )
     else:
         print("ERROR: Neither OPENROUTER_API_KEY nor OPENAI_API_KEY found in environment variables.")
         print("Please configure your .env file with a valid API key.")
         sys.exit(1)
 
-client, MODEL = get_openai_client()
-
-# Define JSON schemas for tools according to OpenAI / OpenRouter function calling spec
-tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read a resume file (.pdf, .txt, .docx) and extract text content along with metadata.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filepath": {
-                        "type": "string",
-                        "description": "The absolute or relative file path to read."
-                    }
-                },
-                "required": ["filepath"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_files",
-            "description": "List all files in a directory, optionally filtering by extension (e.g. '.pdf', '.txt', '.docx').",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "directory": {
-                        "type": "string",
-                        "description": "The directory path to scan (e.g. 'resumes')."
-                    },
-                    "extension": {
-                        "type": "string",
-                        "description": "Optional file extension to filter results by (e.g., '.pdf', '.txt', '.docx')."
-                    }
-                },
-                "required": ["directory"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Write text content to a destination file, creating directories if needed.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filepath": {
-                        "type": "string",
-                        "description": "The path of the destination file to write."
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "The textual content to write into the file."
-                    }
-                },
-                "required": ["filepath", "content"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_in_file",
-            "description": "Perform a case-insensitive keyword search in a file and return matching lines with context.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filepath": {
-                        "type": "string",
-                        "description": "The file path to search inside."
-                    },
-                    "keyword": {
-                        "type": "string",
-                        "description": "The keyword or phrase to search for."
-                    }
-                },
-                "required": ["filepath", "keyword"]
-            }
-        }
-    }
-]
-
-def execute_tool_call(tool_call):
-    """Execute the Python tool function matching the LLM's requested tool call."""
-    function_name = tool_call.function.name
-    try:
-        arguments = json.loads(tool_call.function.arguments)
-    except Exception as parse_err:
-        print(f"[Error] Failed to parse tool arguments: {parse_err}")
-        return json.dumps({"status": "failed", "error": f"Invalid JSON arguments: {parse_err}"})
-
-    print(f"\n[Tool Execution] Calling '{function_name}' with args: {json.dumps(arguments)}")
-
-    try:
-        if function_name == "read_file":
-            result = fs_tools.read_file(arguments.get("filepath"))
-        elif function_name == "list_files":
-            result = fs_tools.list_files(arguments.get("directory"), arguments.get("extension"))
-        elif function_name == "write_file":
-            result = fs_tools.write_file(arguments.get("filepath"), arguments.get("content"))
-        elif function_name == "search_in_file":
-            result = fs_tools.search_in_file(arguments.get("filepath"), arguments.get("keyword"))
-        else:
-            result = {"status": "failed", "error": f"Unknown tool function: {function_name}"}
-    except Exception as e:
-        result = {"status": "failed", "error": str(e)}
-
-    # Truncate output logging if content is huge
-    log_summary = str(result)
-    if len(log_summary) > 250:
-        log_summary = log_summary[:250] + "... [truncated]"
-    print(f"[Tool Output] -> {log_summary}")
-
-    return json.dumps(result)
-
 def run_assistant(query: str, max_iterations: int = 10):
     """
-    Run the LLM assistant loop with tool calling capability.
-    Supports multi-step function calls (e.g. listing files then reading/searching them).
+    Run the LangChain LLM assistant loop with tool calling capability.
+    Supports directory-wide candidate matching and single/multi-file reading.
     """
+    llm = get_llm_model()
+    llm_with_tools = llm.bind_tools(tools)
+
     messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are an AI File System Assistant capable of reading, searching, listing, and writing files. "
-                "You have access to specialized file system tools: list_files, read_file, search_in_file, and write_file. "
-                "When asked to perform tasks on files (such as reading resumes, searching for candidate experience, or creating summary files), "
-                "use the appropriate tools to inspect file contents before giving a response. "
-                "Be thorough, structured, and helpful."
+        SystemMessage(
+            content=(
+                "You are an AI File System Assistant capable of inspecting individual files as well as entire directories of documents. "
+                "You have access to specialized tools: read_file (reads a single file or ALL files in a directory at once), list_files, search_in_file, and write_file. "
+                "When asked to perform tasks or answer queries about candidates/documents in a folder (e.g. 'resumes'), "
+                "use read_file(filepath='resumes') to inspect all files in that directory at once. "
+                "Always identify and respond with the specific related person's name (e.g. 'Alice Harper', 'John Doe', 'Marcus Vane') along with their details."
             )
-        },
-        {"role": "user", "content": query}
+        ),
+        HumanMessage(content=query)
     ]
 
     print("\n" + "=" * 70)
@@ -179,30 +97,33 @@ def run_assistant(query: str, max_iterations: int = 10):
     print("=" * 70)
 
     for iteration in range(max_iterations):
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            tools=tools,
-            tool_choice="auto"
-        )
+        response_message = llm_with_tools.invoke(messages)
+        messages.append(response_message)
 
-        response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+        if response_message.tool_calls:
+            for tool_call in response_message.tool_calls:
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
+                tool_id = tool_call["id"]
 
-        if tool_calls:
-            # Append assistant message requesting tool calls
-            messages.append(response_message)
+                print(f"\n[Tool Execution] Calling '{tool_name}' with args: {json.dumps(tool_args)}")
 
-            for tool_call in tool_calls:
-                tool_result_json = execute_tool_call(tool_call)
-                messages.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": tool_call.function.name,
-                    "content": tool_result_json
-                })
+                selected_tool = tools_by_name.get(tool_name)
+                if selected_tool:
+                    try:
+                        tool_result_str = selected_tool.invoke(tool_args)
+                    except Exception as e:
+                        tool_result_str = json.dumps({"status": "failed", "error": str(e)})
+                else:
+                    tool_result_str = json.dumps({"status": "failed", "error": f"Unknown tool: {tool_name}"})
+
+                log_summary = str(tool_result_str)
+                if len(log_summary) > 250:
+                    log_summary = log_summary[:250] + "... [truncated]"
+                print(f"[Tool Output] -> {log_summary}")
+
+                messages.append(ToolMessage(content=tool_result_str, tool_call_id=tool_id, name=tool_name))
         else:
-            # Final text response from assistant
             final_answer = response_message.content
             print("\n[Assistant Response]:\n")
             print(final_answer)
@@ -217,7 +138,7 @@ if __name__ == "__main__":
     print("      LLM File System Assistant                           ")
     print("==========================================================")
     print("Available Commands:")
-    print("  - Type any natural language file query")
+    print("  - Type any natural language query (e.g., 'Read all resumes in resumes directory')")
     print("  - Type 'demo' to run standard demo queries")
     print("  - Type 'exit' or 'quit' to end session\n")
 
@@ -238,8 +159,8 @@ if __name__ == "__main__":
         if user_input.lower() == 'demo':
             demo_queries = [
                 "Read all resumes in the resumes folder",
-                "Find resumes mentioning Python experience",
-                "Create a summary file for resume_john_doe.pdf at summaries/john_doe_summary.txt"
+                "Find candidates specializing in Literature or Geography",
+                "Find resumes mentioning Python experience"
             ]
             for dq in demo_queries:
                 run_assistant(dq)

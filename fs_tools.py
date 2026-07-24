@@ -6,21 +6,60 @@ import docx
 
 def read_file(filepath: str) -> dict:
     """
-    Read a resume file (PDF, TXT, DOCX) and extract text content along with metadata.
+    Read a file (PDF, TXT, DOCX) or all files in a directory and extract text content along with metadata.
+    If filepath is a directory, reads all supported files in that directory at once.
     
     Args:
-        filepath (str): Path to the file to read.
+        filepath (str): Path to a single file or a directory containing files.
         
     Returns:
-        dict: Structured response with 'status', 'content', and 'metadata'.
+        dict: Structured response with status, content/documents, and metadata.
     """
     try:
         path = Path(filepath)
         if not path.exists():
-            return {"status": "failed", "error": f"File not found: {filepath}"}
-        if not path.is_file():
-            return {"status": "failed", "error": f"Path is not a file: {filepath}"}
+            return {"status": "failed", "error": f"File or directory not found: {filepath}"}
 
+        # Handle directory reading (reads ALL supported files in directory)
+        if path.is_dir():
+            supported_exts = {'.pdf', '.txt', '.docx'}
+            documents = []
+            for item in sorted(path.iterdir()):
+                if item.is_file() and item.suffix.lower() in supported_exts:
+                    file_res = _read_single_file(item)
+                    if file_res.get("status") == "success":
+                        person_name = item.stem.replace("resume_", "").replace("_", " ").title()
+                        lines = [line.strip() for line in file_res["content"].splitlines() if line.strip()]
+                        if lines and "-" in lines[0]:
+                            person_name = lines[0].split("-")[0].strip()
+
+                        documents.append({
+                            "person_name": person_name,
+                            "filename": item.name,
+                            "filepath": str(item),
+                            "content": file_res["content"],
+                            "metadata": file_res["metadata"]
+                        })
+
+            return {
+                "status": "success",
+                "directory": str(path),
+                "files_read_count": len(documents),
+                "documents": documents
+            }
+
+        # Handle single file reading
+        if not path.is_file():
+            return {"status": "failed", "error": f"Path is not a file or directory: {filepath}"}
+
+        return _read_single_file(path)
+
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+def _read_single_file(path: Path) -> dict:
+    """Internal helper to read and parse a single PDF, TXT, or DOCX file."""
+    try:
         extension = path.suffix.lower()
         content = ""
 
@@ -59,6 +98,10 @@ def read_file(filepath: str) -> dict:
 
     except Exception as e:
         return {"status": "failed", "error": str(e)}
+
+def read_directory(directory: str, extension: str = None) -> dict:
+    """Alias function for read_file when explicitly passing a directory path."""
+    return read_file(directory)
 
 def list_files(directory: str, extension: str = None) -> list:
     """
@@ -144,6 +187,31 @@ def search_in_file(filepath: str, keyword: str) -> dict:
         read_result = read_file(filepath)
         if read_result.get("status") == "failed":
             return read_result
+
+        # Handle directory-wide search result
+        if "documents" in read_result:
+            all_matches = []
+            for doc in read_result["documents"]:
+                lines = doc["content"].splitlines()
+                keyword_lower = keyword.lower()
+                for i, line in enumerate(lines):
+                    if keyword_lower in line.lower():
+                        start = max(0, i - 1)
+                        end = min(len(lines), i + 2)
+                        all_matches.append({
+                            "person_name": doc["person_name"],
+                            "filepath": doc["filepath"],
+                            "line_number": i + 1,
+                            "match": line.strip(),
+                            "context": "\n".join(lines[start:end])
+                        })
+            return {
+                "status": "success",
+                "directory": filepath,
+                "keyword": keyword,
+                "matches_found": len(all_matches),
+                "matches": all_matches
+            }
 
         content = read_result.get("content", "")
         lines = content.splitlines()

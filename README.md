@@ -7,13 +7,13 @@ An intelligent, tool-calling File System Assistant powered by LLM function calli
 ## Features
 
 - **Core File System Tools (`fs_tools.py`)**:
-  - `read_file`: Parses text content and extracts metadata (name, path, size, modification timestamp, type) from PDF, DOCX, and TXT files.
+  - `read_file`: Parses text content and metadata (`name`, `path`, `size_bytes`, `type`, `modified_date`) from a single `.pdf`, `.txt`, or `.docx` file OR all files in a directory at once.
   - `list_files`: Lists directory contents with metadata and optional extension filtering (`.pdf`, `.docx`, `.txt`).
   - `write_file`: Writes content to any destination path, automatically creating parent subdirectories.
-  - `search_in_file`: Executes case-insensitive keyword searches, returning exact matching lines with surrounding context.
-- **LLM Function Calling Integration (`llm_file_assistant.py`)**:
-  - Integrated via OpenAI / OpenRouter API using OpenAI function calling JSON schemas.
-  - **Multi-Step Execution Loop**: Supports iterative multi-turn tool calling (e.g. listing directory, then reading/searching each resume sequentially, then writing output files).
+  - `search_in_file`: Executes case-insensitive keyword searches in a file or directory, returning matching lines with context.
+- **LangChain LLM Integration (`llm_file_assistant.py`)**:
+  - Integrated via **LangChain** (`ChatOpenAI`, `langchain-openai`, `langchain-core`) supporting OpenAI and OpenRouter APIs.
+  - **LangChain Tool Binding & Multi-Step Agentic Loop**: Converts file tools to `@tool` decorated functions and binds them via `llm.bind_tools()`. Supports iterative multi-turn tool execution (`SystemMessage`, `HumanMessage`, `AIMessage`, `ToolMessage`).
 - **Project Workbook (`workbook.ipynb`)**:
   - A complete, end-to-end Jupyter Notebook walking through the entire project — from setup and tool definitions to live LLM demo queries and validation tests.
 

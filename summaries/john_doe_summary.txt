@@ -1,0 +1,4 @@
+RESUME SUMMARY — John Doe
+Role   : Senior Software Engineer
+Skills : Python, FastAPI, Docker, AWS, PostgreSQL
+Status : Strong Python background — recommend for interview.
